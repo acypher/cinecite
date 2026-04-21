@@ -31,4 +31,4 @@ jobs:
 
       - name: Deploy via SCP
         run: |
-          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/cinecite.acypher.com/
+          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/
