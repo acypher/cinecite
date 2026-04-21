@@ -35,19 +35,24 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
+          touch ~/.ssh/known_hosts
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 2222 "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+          # No ssh-keyscan: many hosts (including some InMotion configs) drop keyscan
+          # probes after the banner. Host keys are recorded on first real ssh/rsync via
+          # StrictHostKeyChecking=accept-new below.
 
       - name: Deploy via rsync
         run: |
           set -euo pipefail
-          SSH=(ssh -i "$HOME/.ssh/deploy_key" -p 2222 -o BatchMode=yes)
+          SSH_BASE=(ssh -i "$HOME/.ssh/deploy_key" -p 2222 -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30)
           REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 
-          "${SSH[@]}" "$REMOTE" "mkdir -p '${REMOTE_DIST}/public'"
+          "${SSH_BASE[@]}" "$REMOTE" "mkdir -p '${REMOTE_DIST}/public'"
 
-          RSYNC=(rsync -avz --human-readable -e "ssh -i $HOME/.ssh/deploy_key -p 2222 -o BatchMode=yes")
+          RSYNC_SH="ssh -i $HOME/.ssh/deploy_key -p 2222 -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30"
+          RSYNC=(rsync -avz --human-readable -e "$RSYNC_SH")
 
           # Server bundle
           "${RSYNC[@]}" ./dist/index.cjs "$REMOTE:${REMOTE_DIST}/"
@@ -58,5 +63,6 @@ jobs:
       - name: Verify deployment
         run: |
           ssh -i ~/.ssh/deploy_key -p 2222 -o BatchMode=yes \
+            -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
             "${DEPLOY_USER}@${DEPLOY_HOST}" \
             "ls -la '${REMOTE_DIST}/' && ls -la '${REMOTE_DIST}/public/'"
