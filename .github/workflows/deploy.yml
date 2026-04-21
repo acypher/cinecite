@@ -4,9 +4,19 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      DEPLOY_USER: ${{ secrets.SFTP_USERNAME }}
+      DEPLOY_HOST: ${{ secrets.SFTP_HOST }}
+      # Absolute path on InMotion (site lives under /home/thekla5).
+      REMOTE_DIST: /home/thekla5/cinecite.acypher.com/dist
+
     steps:
       - uses: actions/checkout@v4
 
@@ -22,18 +32,31 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Setup SSH key
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p 2222 ${{ secrets.SFTP_HOST }} >> ~/.ssh/known_hosts
-      - name: Deploy via SCP
+          ssh-keyscan -p 2222 "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy via rsync
         run: |
-          ssh -i ~/.ssh/deploy_key -p 2222 ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} "mkdir -p cinecite.acypher.com/dist/public"
-          scp -v -i ~/.ssh/deploy_key -P 2222 ./dist/index.cjs ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/
-          scp -v -i ~/.ssh/deploy_key -P 2222 -r ./dist/public/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/public/
+          set -euo pipefail
+          SSH=(ssh -i "$HOME/.ssh/deploy_key" -p 2222 -o BatchMode=yes)
+          REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
+
+          "${SSH[@]}" "$REMOTE" "mkdir -p '${REMOTE_DIST}/public'"
+
+          RSYNC=(rsync -avz --human-readable -e "ssh -i $HOME/.ssh/deploy_key -p 2222 -o BatchMode=yes")
+
+          # Server bundle
+          "${RSYNC[@]}" ./dist/index.cjs "$REMOTE:${REMOTE_DIST}/"
+
+          # Vite output: trailing slash on source copies *contents* into .../public/
+          "${RSYNC[@]}" --delete ./dist/public/ "$REMOTE:${REMOTE_DIST}/public/"
 
       - name: Verify deployment
         run: |
-          ssh -i ~/.ssh/deploy_key -p 2222 ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} "ls -la cinecite.acypher.com/dist/ && ls -la cinecite.acypher.com/dist/public/"
+          ssh -i ~/.ssh/deploy_key -p 2222 -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "ls -la '${REMOTE_DIST}/' && ls -la '${REMOTE_DIST}/public/'"
