@@ -22,13 +22,13 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to InMotion via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-        with:
-          server: ${{ secrets.SFTP_HOST }}
-          username: ${{ secrets.SFTP_USERNAME }}
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 2222
-          local_path: ./dist/*
-          remote_path: /cinecite.acypher.com
-          sftp_only: true
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p 2222 ${{ secrets.SFTP_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SCP
+        run: |
+          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:/cinecite.acypher.com/
