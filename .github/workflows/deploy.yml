@@ -28,9 +28,12 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p 2222 ${{ secrets.SFTP_HOST }} >> ~/.ssh/known_hosts
-
       - name: Deploy via SCP
         run: |
           ssh -i ~/.ssh/deploy_key -p 2222 ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} "mkdir -p cinecite.acypher.com/dist/public"
-          scp -i ~/.ssh/deploy_key -P 2222 ./dist/index.cjs ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/
-          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist/public/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/public/
+          scp -v -i ~/.ssh/deploy_key -P 2222 ./dist/index.cjs ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/
+          scp -v -i ~/.ssh/deploy_key -P 2222 -r ./dist/public/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/public/
+
+      - name: Verify deployment
+        run: |
+          ssh -i ~/.ssh/deploy_key -p 2222 ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} "ls -la cinecite.acypher.com/dist/ && ls -la cinecite.acypher.com/dist/public/"
