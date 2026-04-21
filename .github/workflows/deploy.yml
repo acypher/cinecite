@@ -27,8 +27,8 @@ jobs:
         with:
           server: ${{ secrets.SFTP_HOST }}
           username: ${{ secrets.SFTP_USERNAME }}
-          password: ${{ secrets.SFTP_PASSWORD }}
-          port: 2222
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+	  port: 2222
           local_path: ./dist/*
           remote_path: /cinecite.acypher.com
           sftp_only: true
