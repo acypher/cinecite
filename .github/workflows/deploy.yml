@@ -31,4 +31,6 @@ jobs:
 
       - name: Deploy via SCP
         run: |
-          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/
+          ssh -i ~/.ssh/deploy_key -p 2222 ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }} "mkdir -p cinecite.acypher.com/dist/public"
+          scp -i ~/.ssh/deploy_key -P 2222 ./dist/index.cjs ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/
+          scp -i ~/.ssh/deploy_key -P 2222 -r ./dist/public/* ${{ secrets.SFTP_USERNAME }}@${{ secrets.SFTP_HOST }}:cinecite.acypher.com/dist/public/
